@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expense Tracker Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --primary:#4a90e2; --green:#27ae60; --red:#e74c3c; --bg:#f4f7fb; --card:#ffffff;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg); color:#333; display:flex; justify-content:center; padding:16px;
+    }
+    .container{
+      width:100%; max-width:1000px; background:var(--card); border-radius:16px; padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.08);
+    }
+    header{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    header h1{ margin:0; color:var(--primary); font-size:1.6rem; }
+    header button.logout {
+      background:var(--red); color:#fff; border:none; border-radius:10px; padding:8px 16px;
+      cursor:pointer; font-size:14px;
+    }
+    button, input, select{
+      padding:12px; border-radius:10px; border:1px solid #ddd; font-size:14px;
+    }
+    .btn{ background:var(--primary); color:#fff; border:none; cursor:pointer; }
+    .btn:hover{ filter:brightness(.95); }
+    .grid{ display:grid; gap:16px; }
+    .summary{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); margin-top:16px; }
+    .card{ background:#fafafa; border-radius:12px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+    .card h3{ margin:0; color:#666; font-weight:600; }
+    .card p{ margin:8px 0 0; font-weight:800; font-size:1.2rem; }
+
+    .income{ color:var(--green); } .expense{ color:var(--red); } .balance{ color:var(--primary); }
+
+    .panel{ background:#fafafa; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; }
+    .row > *{ flex:1 1 160px; }
+
+    ul{ list-style:none; padding:0; margin:0; }
+    li.tx{ display:flex; align-items:center; justify-content:space-between; padding:12px; margin:8px 0;
+      background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,.05); border-left:6px solid; }
+    li.tx.income{ border-color:var(--green); }
+    li.tx.expense{ border-color:var(--red); }
+    .tx-main{ display:flex; flex-direction:column; gap:2px; }
+    .tx-title{ font-weight:700; }
+    .tx-meta{ font-size:12px; color:#666; }
+    .tx-actions{ display:flex; gap:6px; }
+    .icon-btn{ background:transparent; border:1px solid #eee; padding:8px 10px; border-radius:8px; cursor:pointer; }
+    .icon-btn:hover{ background:#f2f2f2; }
+
+    .charts{ grid-template-columns:1fr 1fr; }
+    @media (max-width: 800px){ .charts{ grid-template-columns:1fr; } }
+
+    canvas { width:100% !important; height:300px !important; }
+
+    .fab{
+      position:fixed; right:18px; bottom:18px; width:56px; height:56px; border-radius:50%;
+      background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center;
+      font-size:28px; box-shadow:0 8px 20px rgba(0,0,0,.25); cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+
+    <header>
+      <h1>💰 Expense Tracker Pro</h1>
+     
+      <button class="logout" id="logoutBtn">Logout</button>
+    </header>
+
+    <div id="mainView">
+      <div class="grid summary">
+        <div class="card balance"><h3>Balance</h3><p id="balance">₹0</p></div>
+        <div class="card income"><h3>Income</h3><p id="income">₹0</p></div>
+        <div class="card expense"><h3>Expense</h3><p id="expense">₹0</p></div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="row">
+          <input type="text" id="text" placeholder="Description (e.g., Pizza, Salary)" />
+          <input type="number" id="amount" placeholder="Amount (+income, -expense)" />
+          <select id="category">
+  <option>Income</option>
+  <option>Food</option>
+  <option>Travel</option>
+  <option>Shopping</option>
+  <option>Bills</option>
+  <option>Electronics</option>
+  <option>Health</option>
+  <option>Education</option>
+  <option>Entertainment</option>
+  <option>Gifts</option>
+  <option>Groceries</option>
+  <option>Rent</option>
+  <option>Investments</option>
+  <option>Insurance</option>
+  <option>Utilities</option>
+  <option>Charity</option>
+  <option>Other</option>
+</select>
+          <input type="date" id="date" />
+          <button class="btn" id="addBtn">+ Add</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input type="date" id="startDate" />
+          <input type="date" id="endDate" />
+          <select id="filterCategory">
+  <option>All</option>
+    <option>Income</option>
+  <option>Food</option>
+  <option>Travel</option>
+  <option>Shopping</option>
+  <option>Bills</option>
+  <option>Electronics</option>
+  <option>Health</option>
+  <option>Education</option>
+  <option>Entertainment</option>
+  <option>Gifts</option>
+  <option>Groceries</option>
+  <option>Rent</option>
+  <option>Investments</option>
+  <option>Insurance</option>
+  <option>Utilities</option>
+  <option>Charity</option>
+  <option>Other</option>
+</select>
+          <input type="search" id="search" placeholder="Search text…" />
+          <button class="icon-btn" id="applyFilter">Apply Filter</button>
+          <button class="icon-btn" id="clearFilter">Clear</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <h3 style="margin-top:0">📜 Transactions</h3>
+        <ul id="list"></ul>
+      </div>
+
+      <div class="grid charts" style="margin-top:16px">
+        <div class="panel">
+          <h3 style="margin-top:0">Spending by Category</h3>
+          <canvas id="pie"></canvas>
+        </div>
+        <div class="panel">
+          <h3 style="margin-top:0">Monthly Totals</h3>
+          <canvas id="line"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="fab" id="fab">＋</div>
+  </div>
+
+<script>
+  
+const BACKEND_URL = "http://localhost:5000";
+const token = localStorage.getItem("token");
+
+if (!token) window.location.href = "login.html";
+
+document.getElementById("logoutBtn").onclick = () => {
+  localStorage.removeItem("token");
+  window.location.href = "login.html";
+};
+
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + token
+  };
+}
+const listEl = document.getElementById("list");
+const incomeEl = document.getElementById("income");
+const expenseEl = document.getElementById("expense");
+const balanceEl = document.getElementById("balance");
+const textEl = document.getElementById("text");
+const amountEl = document.getElementById("amount");
+const categoryEl = document.getElementById("category");
+const dateEl = document.getElementById("date");
+const startDateEl = document.getElementById("startDate");
+const endDateEl = document.getElementById("endDate");
+const filterCategoryEl = document.getElementById("filterCategory");
+const searchEl = document.getElementById("search");
+const addBtn = document.getElementById("addBtn");
+const applyFilterBtn = document.getElementById("applyFilter");
+const clearFilterBtn = document.getElementById("clearFilter");
+const fab = document.getElementById("fab");
+
+let pieChart, lineChart;
+fab.onclick = () => textEl.focus();
+
+addBtn.onclick = async () => {
+  const text = textEl.value.trim();
+  const amount = Number(amountEl.value);
+  const category = categoryEl.value;
+  const createdAt = dateEl.value ? new Date(dateEl.value).toISOString() : new Date().toISOString();
+  if (!text) return alert("Please enter a description.");
+  if (!amount) return alert("Please enter a valid amount.");
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/transactions`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ text, amount, category, createdAt })
+    });
+    if (!res.ok) throw new Error("Failed to add transaction");
+    textEl.value = ""; amountEl.value = ""; dateEl.value = "";
+    loadData();
+  } catch (err) { console.error(err); alert(err.message); }
+};
+
+applyFilterBtn.onclick = loadData;
+clearFilterBtn.onclick = () => {
+  startDateEl.value = ""; endDateEl.value = ""; filterCategoryEl.value = "All"; searchEl.value = "";
+  loadData();
+};
+
+
+
+async function loadData() {
+  try {
+    const params = new URLSearchParams();
+    if (startDateEl.value) params.set("start", startDateEl.value);
+    if (endDateEl.value) params.set("end", endDateEl.value);
+    if (filterCategoryEl.value !== "All") params.set("category", filterCategoryEl.value);
+    if (searchEl.value) params.set("q", searchEl.value.trim());
+
+    const res = await fetch(`${BACKEND_URL}/api/transactions?${params.toString()}`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to load transactions");
+    const txs = await res.json();
+    renderList(txs); renderSummary(txs); renderCharts(txs);
+  } catch (err) { console.error(err); alert(err.message); }
+}
+
+function renderList(txs) {
+  listEl.innerHTML = "";
+  txs.forEach(t => {
+    const li = document.createElement("li");
+    li.className = `tx ${t.amount>0?"income":"expense"}`;
+    li.innerHTML = `
+      <div class="tx-main">
+        <div class="tx-title">${t.text} — <b>${t.category}</b></div>
+        <div class="tx-meta">${new Date(t.createdAt).toLocaleDateString()}</div>
+      </div>
+      <div class="tx-actions">
+        <div style="min-width:90px;text-align:right;font-weight:800">${t.amount>0?"+":""}₹${Math.abs(t.amount)}</div>
+        <button class="icon-btn" onclick='editTx("${t._id}", "${t.text.replace(/"/g,'&quot;')}","${t.category}", ${t.amount}, "${t.createdAt}")'>✏️</button>
+        <button class="icon-btn" onclick='delTx("${t._id}")'>🗑️</button>
+      </div>
+    `;
+    listEl.appendChild(li);
+  });
+}
+
+async function delTx(id) {
+  if (!confirm("Delete this transaction?")) return;
+  await fetch(`${BACKEND_URL}/api/transactions/${id}`, { method: "DELETE", headers: authHeaders() });
+  loadData();
+}
+
+async function editTx(id, textOld, categoryOld, amountOld, dateOld) {
+  const text = prompt("Description:", textOld); if (text===null) return;
+  const amount = Number(prompt("Amount (+income, -expense):", amountOld)); if (Number.isNaN(amount)) return alert("Invalid amount");
+  const category = prompt("Category:", categoryOld) || categoryOld;
+  const dateStr = prompt("Date (YYYY-MM-DD):", dateOld?.slice(0,10));
+  const createdAt = dateStr ? new Date(dateStr).toISOString() : dateOld;
+
+  await fetch(`${BACKEND_URL}/api/transactions/${id}`, {
+    method:"PUT", headers:authHeaders(), body:JSON.stringify({ text, amount, category, createdAt })
+  });
+  loadData();
+}
+
+function renderSummary(txs) {
+  let inc=0, exp=0;
+  txs.forEach(t=> t.amount>0?inc+=t.amount:exp+=Math.abs(t.amount));
+  incomeEl.textContent=`₹${inc}`;
+  expenseEl.textContent=`₹${exp}`;
+  balanceEl.textContent=`₹${inc-exp}`;
+}
+
+function renderCharts(txs) {
+  const catMap={};
+  txs.forEach(t=>{ if(t.amount<0) catMap[t.category]=(catMap[t.category]||0)+Math.abs(t.amount); });
+
+  const pieCtx=document.getElementById("pie").getContext("2d");
+  if(pieChart) pieChart.destroy();
+  pieChart=new Chart(pieCtx,{type:"pie", data:{labels:Object.keys(catMap), datasets:[{data:Object.values(catMap)}]}, options:{plugins:{legend:{position:"bottom"}}}});
+
+  const monthMap={};
+  txs.forEach(t=>{
+    const d=new Date(t.createdAt);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    monthMap[k]=(monthMap[k]||0)+t.amount;
+  });
+  const months=Object.keys(monthMap).sort();
+  const totals=months.map(m=>monthMap[m]);
+
+  const lineCtx=document.getElementById("line").getContext("2d");
+  if(lineChart) lineChart.destroy();
+  lineChart=new Chart(lineCtx,{type:"line", data:{labels:months, datasets:[{label:"Net (₹)", data:totals, tension:0.25, fill:false}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}}});
+}
+
+// Boot
+loadData();
+</script>
+</body>
+</html>
